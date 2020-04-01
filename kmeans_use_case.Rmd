@@ -1,0 +1,27 @@
+---
+title: "Untitled"
+author: "Sitta"
+date: "3/31/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<center>
+
+![Source: [Research Gate](https://www.researchgate.net/figure/Supervised-learning-and-unsupervised-learning-Supervised-learning-uses-annotation_fig1_329533120)](assets/Supervised vs Unsup.png)
+
+
+</center>
+
+## Clustering Analysis
+
+[Cluster analysis](https://en.wikipedia.org/wiki/Cluster_analysis) or clustering is the task of grouping a set of objects in such a way that objects in the same group (called a cluster) are more similar (in some sense) to each other than to those in other groups (clusters).
+
+# Another cases of unsupervised learning
+1. [Clustering AirBnB Review](https://arxiv.org/pdf/1705.03134.pdf)
+2. [Why Tourists Choose Airbnb: A Motivation-Based Segmentation Study](https://www.researchgate.net/publication/316533754_Why_Tourists_Choose_Airbnb_A_Motivation-Based_Segmentation_Study)
+3. [Clustering the weapon in PUBG game ](https://algorit.ma/blog/data-science-analysis-pubg/?utm_source=Instagram&utm_medium=Social&utm_campaign=Blog)
+4. [A Taxi Driving Fraud Detection System](https://ieeexplore.ieee.org/abstract/document/6137222?utm_source=datafloq&utm_medium=ref&utm_campaign=datafloq)
