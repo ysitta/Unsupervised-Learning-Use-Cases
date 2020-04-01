@@ -1,0 +1,215 @@
+---
+title: "Dimensionality Reduction using Principal Component Analysis"
+author: "Yaumil Sitta"
+date: "`r format(Sys.Date(), '%B %e, %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    theme: united
+    highlight: espresso
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+This article focused on the application of Principal Component Analysis (PCA) on reducing the dimension. So, the mathematical formula will not be detail explained here. 
+
+If you are familiar enough with data, sometimes you are faced with too many predictor variables that make the computation so heavy. Let us say, you are challenged to predict employee in your company will resign or not while the variables are the level of satisfaction on work, number of project, average monthly hours, time spend at the company, etc. You are facing so many predictor that took so long for training the model.
+
+Then, you should reduce the dimension to make the computation less heavy. To do the dimensionality reduction, the techniques divide into two ways:
+- Feature Elimination
+- Feature Extraction
+
+# Feature Elimination
+
+Feature elimination is when you select the variable that is influence your prediction, and throw away the variable that has no contribution to your prediction. In the case of prediction of resigning employee or not, for example, you only choose the variable that is influencing the employee resignation. 
+
+Generally, you choose the variables based on your expertise on experiencing the employee resignation. Besides, you can use several statistical technique to this, like using variance, spearman, anova, etc. Unfortunately, this article will not explain what kinds of feature elimination here, since we want to focus on the one of feature extraction methods.
+
+# Feature Extraction
+
+Feature extraction is a technique that you create **new** variable based on your existing variable. Let us say, for the employee resignation example, given we have 10 predictor variables to predict the employee will resign or not. So, in feature extraction, we create 10 **new** variables based on the 10 given variable. One of the techniques to do this is called Principal Component Analysis (PCA)  
+
+
+# Principal Component Analysis
+
+The Principal Component Analysis (PCA) is a statistical method to reduce the dimension of the data by extracting the variables and leave the variables that has least information about something that we predicted $\hat{y}$.
+
+Then, when you should using PCA instead of other method?
+
+- When you want to reduce the dimension/variable, but you dont care what variables that is completely remove
+- When you want to ensure your variables are not correlate of one another
+- When you are comfortable enough to make your predictor variables less interpretable
+
+
+# Principal Component Analysis Use Cases
+
+We will explored PCA on the data that has variables correlation and no correlation. We will start with the correlated variables first. 
+
+In this use case, we use Online Shoppers Intention dataset. The data is downloaded from [kaggle](https://www.kaggle.com/roshansharma/online-shoppers-intention). The data consists of various Information related to customer behavior in online shopping websites. Let us say, we want to predict a customer will generate the revenue of our business or not.
+
+We will create two models here, the first is the model that the predictors is using PCA, and the second is the model without PCA in the preprocessing data.
+
+Load the library needed.
+```{r}
+library(tidyverse)
+library(FactoMineR)
+library(rsample)
+library(caret)
+library(tidymodels)
+library(recipes)
+```
+
+Load the shopper intention dataset to our environment.
+```{r}
+shopper_intention <- read_csv("data_input/online_shoppers_intention.csv")
+```
+
+```{r echo = FALSE}
+shopper_intention <- shopper_intention %>% 
+  mutate(Revenue = as.factor(Revenue),
+         OperatingSystems = as.factor(OperatingSystems),
+         Browser = as.factor(Browser),
+         Region = as.factor(Region),
+         Weekend = as.factor(Weekend))
+```
+
+The data is shown as seen below:
+```{r}
+glimpse(shopper_intention)
+```
+
+The dataset has 12,330 observations and 18 variables. Hence, we have 17 predictor variables and 1 target variable to predict. Here are the description of the variables in the data:
+
+- `Administrative` = Administrative Value
+- `Administrative_Duration` = Duration in Administrative Page
+- `Informational` = Informational Value
+- `Informational_Duration` = Duration in Informational Page
+- `ProductRelated` = Product Related Value
+- `ProductRelated_Duration` = Duration in Product Related Page
+- `BounceRates` = percentage of visitors who enter the site from that page and then leave ("bounce") without triggering any other requests to the analytics server during that session. 
+- `ExitRates` = Exit rate of a web page
+- `PageValuesPage` = values of each web page
+- `SpecialDaySpecial` = days like valentine etc
+- `Month` = Month of the year
+- `OperatingSystems` = Operating system used
+- `Browser` = Browser used
+- `Region` = Region of the user
+- `TrafficType` = Traffic Type
+- `VisitorType` = Types of Visitor
+- `Weekend` = Weekend or not
+- `Revenue` = Revenue will be generated or not
+
+Based on its description, it looks like our variables are in its correct data type. Besides, we want to check the correlation between each numerical predictor variable using visualization in ggcorr. 
+```{r}
+library(GGally)
+ggcorr(select_if(shopper_intention, is.numeric), label = T, label_round = 2, hjust = 1, layout.exp = 3)
+```
+
+It looks like our variables has correlation of one another. Now, let us do the cross validation to split the data into train and test.
+
+### Cross Validation
+
+```{r}
+set.seed(417)
+splitted <- initial_split(data = shopper_intention, prop = 0.8, strata = "Revenue")
+```
+
+```{r}
+prop.table(table(shopper_intention$Revenue))
+```
+
+Based on the proportion of target variable, we know that the data is imbalance, hence we will balancing the data in its preprocessing.
+
+```{r}
+colSums(is.na(shopper_intention))
+```
+
+Based on the output above, our data has several missing value (NA). Then, we will remove the NA in its preprocessing.
+
+Here, we do the several preprocessing include PCA (using 90% variance of the data)
+
+```{r}
+rec <- recipe(Revenue~., training(splitted)) %>% 
+  step_naomit(all_predictors()) %>% 
+  step_nzv(all_predictors()) %>% 
+  step_upsample(Revenue, ratio = 1, seed = 100) %>% 
+  step_center(all_numeric()) %>%
+  step_scale(all_numeric()) %>%
+  step_pca(all_numeric(), threshold = 0.90) %>%
+  prep()
+```
+
+```{r}
+train <- juice(rec)
+test <- bake(rec, testing(splitted))
+```
+
+
+```{r eval = F}
+set.seed(100)
+ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+model <- train(Revenue ~ ., data = train, method = "rf", trControl = ctrl)
+```
+
+
+```{r echo = F}
+# saveRDS(model, "model_RF.RDS")
+```
+
+
+```{r}
+model <- readRDS("RF.RDS")
+prediction <- predict(model, test)
+```
+
+ 
+```{r}
+confusionMatrix(prediction, test$Revenue, positive = "TRUE")
+```
+
+Now, we want to compare the result above with the model without PCA.
+
+```{r}
+rec2 <- recipe(Revenue~., training(splitted)) %>% 
+  step_naomit(all_predictors()) %>% 
+  step_nzv(all_predictors()) %>% 
+  step_upsample(Revenue, ratio = 1, seed = 100) %>% 
+  step_center(all_numeric()) %>% 
+  step_scale(all_numeric()) %>% 
+  prep()
+```
+
+```{r}
+train2 <- juice(rec2)
+test2 <- bake(rec2, testing(splitted))
+```
+
+```{r eval = F}
+set.seed(100)
+ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+model2 <- train(Revenue ~ ., data = train2, method = "rf", trControl = ctrl)
+```
+
+```{r echo = F}
+# saveRDS(model, "RF2.RDS")
+```
+
+```{r echo = F}
+model2 <- readRDS("RF2.RDS")
+```
+
+```{r}
+prediction <- predict(model2, test2)
+```
+
+```{r}
+confusionMatrix(prediction, test$Revenue, positive = "TRUE")
+```
+
