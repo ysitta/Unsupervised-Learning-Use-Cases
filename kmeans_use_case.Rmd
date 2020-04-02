@@ -1,13 +1,28 @@
 ---
-title: "Untitled"
-author: "Sitta"
-date: "3/31/2020"
-output: html_document
+title: "Fraud Analysis using K-Means Algorithm"
+author: "Yaumil Sitta"
+date: "`r format(Sys.Date(), '%B %e, %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    theme: united
+    highlight: espresso
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
 ```
+
+```{r}
+library(tidyverse)
+library(factoextra)
+```
+
 
 <center>
 
@@ -19,6 +34,66 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Clustering Analysis
 
 [Cluster analysis](https://en.wikipedia.org/wiki/Cluster_analysis) or clustering is the task of grouping a set of objects in such a way that objects in the same group (called a cluster) are more similar (in some sense) to each other than to those in other groups (clusters).
+
+```{r}
+paysim <- read_csv("paysim.csv")
+```
+
+```{r echo = F}
+paysim <- paysim %>% 
+  mutate(type = as.factor(type),
+         Fraud = as.factor(Fraud), 
+         FlaggedFraud = as.factor(FlaggedFraud))
+```
+
+Variables Description:   
+
+- `step` = maps a unit of time in the real world. In this case 1 step is 1 hour of time. Total steps 744 (30 days simulation).    
+- `type` = CASH-IN, CASH-OUT, DEBIT, PAYMENT and TRANSFER.   
+- `amount` = amount of the transaction in local currency.    
+- `nameOrig` = customer who started the transaction    
+- `oldbalanceOrg` = initial balance before the transaction    
+- `newbalanceOrig` = new balance after the transaction    
+- `nameDest` = customer who is the recipient of the transaction    
+- `oldbalanceDest` = initial balance recipient before the transaction. Note that there is not information for customers that start with M (Merchants).   
+- `newbalanceDest` = new balance recipient after the transaction. Note that there is not information for customers that start with M (Merchants).    
+- `isFraud` = This is the transactions made by the fraudulent agents inside the simulation. In this specific dataset the fraudulent behavior of the agents aims to profit by taking control or customers accounts and try to empty the funds by transferring to another account and then cashing out of the system.    
+- `isFlaggedFraud` = The business model aims to control massive transfers from one account to another and flags illegal attempts. An illegal attempt in this dataset is an attempt to transfer more than 200.000 in a single transaction.    
+
+
+```{r}
+paysim_num <- paysim %>% 
+  select_if(is.numeric) %>% 
+  scale()
+```
+
+
+```{r}
+wss <- function(data, maxCluster = 9) {
+    # Initialize within sum of squares
+    SSw <- (nrow(data) - 1) * sum(apply(data, 2, var))
+    SSw <- vector()
+    for (i in 2:maxCluster) {
+        SSw[i] <- sum(kmeans(data, centers = i)$withinss)
+    }
+    plot(1:maxCluster, SSw, type = "o", xlab = "Number of Clusters", ylab = "Within groups sum of squares", pch=19)
+}
+```
+
+```{r}
+options(scipen = 999)
+wss(paysim_num)
+```
+
+```{r}
+set.seed(100)
+pay_km <- kmeans(paysim_num, centers = 4)
+```
+
+```{r}
+fviz_cluster(pay_km, paysim_num)
+```
+
 
 # Another cases of unsupervised learning
 1. [Clustering AirBnB Review](https://arxiv.org/pdf/1705.03134.pdf)
