@@ -23,6 +23,9 @@ library(tidyverse)
 library(factoextra)
 ```
 
+# Unsupervised Learning
+
+Imagine you have a dataset and have no variable that you will predict. In case you have a datasets with no target variable, the learning of a machine has to be unsupervised. Hence the learning will be done based on several measure of similarity or distance between each observation in the dataset. The most commonly used technique in supervised learning is clustering.
 
 <center>
 
@@ -31,19 +34,31 @@ library(factoextra)
 
 </center>
 
-## Clustering Analysis
+# Clustering Analysis
 
-[Cluster analysis](https://en.wikipedia.org/wiki/Cluster_analysis) or clustering is the task of grouping a set of objects in such a way that objects in the same group (called a cluster) are more similar (in some sense) to each other than to those in other groups (clusters).
+[Cluster analysis](https://en.wikipedia.org/wiki/Cluster_analysis) or clustering is the task of grouping a set of objects in such a way that objects in the same group (called a cluster) are more similar (in some sense) to each other than to those in other groups (clusters). In this article, we will discuss about one of the common clustering algorithms, that is kmeans.
+
+# Kmeans Clustering Analysis
+
+K-means is a centroid-based clustering algorithm that follows a simple procedure of classifying a given dataset into a pre-determined number of clusters, denoted as “k”. We will discuss about one use case that can be done using kmeans algorithm.
+
+The use case that will be discuss here is fraud analysis in mobile financial industry.
 
 ```{r}
-paysim <- read_csv("paysim.csv")
+paysim <- read_csv("paysim1.csv")
 ```
+
+PaySim simulates mobile money transactions based on a sample of real transactions extracted from one month of financial logs from a mobile money service implemented in an African country. The original logs were provided by a multinational company, who is the provider of the mobile financial service which is currently running in more than 14 countries all around the world. The dataset is downloaded from [kaggle](https://www.kaggle.com/ntnu-testimon/paysim1).
 
 ```{r echo = F}
 paysim <- paysim %>% 
   mutate(type = as.factor(type),
          Fraud = as.factor(Fraud), 
          FlaggedFraud = as.factor(FlaggedFraud))
+```
+
+```{r}
+head(paysim)
 ```
 
 Variables Description:   
@@ -65,6 +80,8 @@ Variables Description:
 paysim_num <- paysim %>% 
   select_if(is.numeric) %>% 
   scale()
+
+paysim_num <- as.data.frame(paysim_num)
 ```
 
 
@@ -85,13 +102,52 @@ options(scipen = 999)
 wss(paysim_num)
 ```
 
+The elbow curve suggests that with four clusters, we were able to explain most
+of the variance in data. Beyond five clusters adding more clusters is not helping with
+explaining the groups (WCSS is saturating after four).
+
 ```{r}
 set.seed(100)
 pay_km <- kmeans(paysim_num, centers = 4)
 ```
 
 ```{r}
-fviz_cluster(pay_km, paysim_num)
+paysim$cluster <- pay_km$cluster
+```
+
+
+```{r}
+paysim_num
+```
+
+```{r}
+paysim %>% 
+  select(-c(type,nameOrig, nameDest, Fraud, FlaggedFraud)) %>% 
+  group_by(cluster) %>% 
+  summarise_all("mean")
+```
+
+```{r}
+paysim %>% 
+  select(-c(type,nameOrig, nameDest, FlaggedFraud)) %>% 
+  group_by(Fraud) %>% 
+  summarise_all("mean")
+```
+
+```{r}
+set.seed(100)
+index <- sample(nrow(paysim), nrow(paysim)*0.01)
+paysim_subset <- paysim[index,]
+```
+
+
+```{r}
+pay_coba <- paysim_subset %>% 
+  filter(Fraud == "Yes")
+```
+
+```{r}
+table(paysim$Fraud, paysim$cluster)
 ```
 
 
@@ -100,3 +156,67 @@ fviz_cluster(pay_km, paysim_num)
 2. [Why Tourists Choose Airbnb: A Motivation-Based Segmentation Study](https://www.researchgate.net/publication/316533754_Why_Tourists_Choose_Airbnb_A_Motivation-Based_Segmentation_Study)
 3. [Clustering the weapon in PUBG game ](https://algorit.ma/blog/data-science-analysis-pubg/?utm_source=Instagram&utm_medium=Social&utm_campaign=Blog)
 4. [A Taxi Driving Fraud Detection System](https://ieeexplore.ieee.org/abstract/document/6137222?utm_source=datafloq&utm_medium=ref&utm_campaign=datafloq)
+
+```{r}
+library(DMwR2)
+```
+
+```{r}
+head(sales)
+```
+
+The attributes are described as follows:
+a) ID: Represents the sales person identification
+b) Prod: Represents the identification of the product.
+c) Val: Represents the reported transaction value.
+d) Quant: represents the quantity of a particular product
+e) Insp: Contains the report of three possible values i.e. ok, fraud and unknown
+
+```{r}
+sales_num <- select_if(sales, is.numeric) %>% 
+  drop_na() %>% 
+  scale()
+```
+
+```{r}
+wss(sales_num)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(100)
+sales.km <- kmeans(sales_num, centers = 3)
+```
+
+```{r}
+sales_baru <- sales %>% 
+  drop_na()
+```
+
+```{r}
+ggplot(sales_baru, aes(x = Quant, y = Val)) +
+  geom_point(aes(col = as.factor(sales.km$cluster), shape = sales_baru$Insp))
+```
+
+```{r}
+table(sales$Insp)
+```
+
+```{r}
+sales_baru$cluster <- sales.km$cluster
+```
+
+```{r}
+sal_filter <- sales_baru %>% 
+  filter(Insp == "fraud")
+```
+
+
+```{r}
+table(sales_baru$Insp, sales_baru$cluster)
+```
+
+```{r}
+
+```
+
