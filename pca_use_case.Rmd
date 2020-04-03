@@ -22,9 +22,10 @@ This article focused on the application of Principal Component Analysis (PCA) on
 
 If you are familiar enough with data, sometimes you are faced with too many predictor variables that make the computation so heavy. Let us say, you are challenged to predict employee in your company will resign or not while the variables are the level of satisfaction on work, number of project, average monthly hours, time spend at the company, etc. You are facing so many predictor that took so long for training the model.
 
-Then, you should reduce the dimension to make the computation less heavy. To do the dimensionality reduction, the techniques divide into two ways:
-- Feature Elimination
-- Feature Extraction
+Then, you should reduce the dimension to make the computation less heavy. To do the dimensionality reduction, the techniques divide into two ways:   
+
+- **Feature Elimination**   
+- **Feature Extraction**   
 
 # Feature Elimination
 
@@ -41,14 +42,14 @@ Feature extraction is a technique that you create **new** variable based on your
 
 The Principal Component Analysis (PCA) is a statistical method to reduce the dimension of the data by extracting the variables and leave the variables that has least information about something that we predicted $\hat{y}$.
 
-Then, when you should using PCA instead of other method?
+Then, when you should using PCA instead of other method?   
 
-- When you want to reduce the dimension/variable, but you dont care what variables that is completely remove
-- When you want to ensure your variables are not correlate of one another
-- When you are comfortable enough to make your predictor variables less interpretable
+- When you want to reduce the dimension/variable, but you dont care what variables that is completely remove   
+- When you want to ensure your variables are not correlate of one another   
+- When you are comfortable enough to make your predictor variables less interpretable   
 
 
-# Principal Component Analysis Use Cases
+# Applying PCA on Online Shopper Intention Dataset
 
 We will explored PCA on the data that has variables correlation and no correlation. We will start with the correlated variables first. 
 
@@ -64,6 +65,8 @@ library(rsample)
 library(caret)
 library(tidymodels)
 library(recipes)
+library(tictoc)
+library(GGally)
 ```
 
 Load the shopper intention dataset to our environment.
@@ -108,32 +111,41 @@ The dataset has 12,330 observations and 18 variables. Hence, we have 17 predicto
 
 Based on its description, it looks like our variables are in its correct data type. Besides, we want to check the correlation between each numerical predictor variable using visualization in ggcorr. 
 ```{r}
-library(GGally)
-ggcorr(select_if(shopper_intention, is.numeric), label = T, label_round = 2, hjust = 1, layout.exp = 3)
+ggcorr(select_if(shopper_intention, is.numeric), 
+       label = T, 
+       hjust = 1, 
+       layout.exp = 3)
 ```
 
 It looks like our variables has correlation of one another. Now, let us do the cross validation to split the data into train and test.
 
-### Cross Validation
+Cross Validation
 
 ```{r}
+RNGkind(sample.kind = "Rounding")
 set.seed(417)
 splitted <- initial_split(data = shopper_intention, prop = 0.8, strata = "Revenue")
 ```
+
+Now, let us check the proortion of our response variable, that is `Revenue`.
 
 ```{r}
 prop.table(table(shopper_intention$Revenue))
 ```
 
-Based on the proportion of target variable, we know that the data is imbalance, hence we will balancing the data in its preprocessing.
+Based on the proportion of our response variable, we know that the data is imbalance, hence we will balancing the data in its preprocessing.
+
+Then, let us check is there any missing value or not on each variable.
 
 ```{r}
 colSums(is.na(shopper_intention))
 ```
 
-Based on the output above, our data has several missing value (NA). Then, we will remove the NA in its preprocessing.
+Based on the output above, our data has several missing value (NA), but the number of missing value still 5% of our data. Hence, we can remove the NA in our preprocessing step.
 
-Here, we do the several preprocessing include PCA (using 90% variance of the data)
+### The Revenue on Online Wesite Prediction with PCA
+
+Here, we do the several preprocessing step, including **PCA** (using 90% variance of the data)
 
 ```{r}
 rec <- recipe(Revenue~., training(splitted)) %>% 
@@ -151,28 +163,41 @@ train <- juice(rec)
 test <- bake(rec, testing(splitted))
 ```
 
-
-```{r eval = F}
-set.seed(100)
-ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
-model <- train(Revenue ~ ., data = train, method = "rf", trControl = ctrl)
+```{r}
+head(train)
 ```
 
+Here we can see that from 11 numerical predictor, we can use just 6 PC/ new variable to be included in our model.
+
+```{r eval = F}
+RNGkind(sample.kind = "Rounding")
+set.seed(100)
+tic()
+ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+model <- train(Revenue ~ ., data = train, method = "rf", trControl = ctrl)
+toc()
+```
+<center>
+
+![](assets/tictoc_pca.PNG)
+
+</center>
 
 ```{r echo = F}
 # saveRDS(model, "model_RF.RDS")
 ```
 
-
 ```{r}
-model <- readRDS("RF.RDS")
-prediction <- predict(model, test)
+model <- readRDS("model_RF.RDS")
+prediction_pca <- predict(model, test)
 ```
 
- 
 ```{r}
-confusionMatrix(prediction, test$Revenue, positive = "TRUE")
+confusionMatrix(prediction_pca, test$Revenue, positive = "TRUE")
 ```
+
+### The Revenue on Online Wesite Prediction without PCA
+
 
 Now, we want to compare the result above with the model without PCA.
 
@@ -191,18 +216,27 @@ train2 <- juice(rec2)
 test2 <- bake(rec2, testing(splitted))
 ```
 
-```{r eval = F}
+```{r eval = F} 
+RNGkind(sample.kind = "Rounding")
 set.seed(100)
+tic()
 ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
 model2 <- train(Revenue ~ ., data = train2, method = "rf", trControl = ctrl)
+toc()
+```
+
+<center>
+
+![](assets/tictoc_tnp_pca2.PNG)
+
+</center>
+
+```{r echo = F}
+# saveRDS(model2, "model_RF2.RDS")
 ```
 
 ```{r echo = F}
-# saveRDS(model, "RF2.RDS")
-```
-
-```{r echo = F}
-model2 <- readRDS("RF2.RDS")
+model2 <- readRDS("model_RF2.RDS")
 ```
 
 ```{r}
@@ -213,3 +247,171 @@ prediction <- predict(model2, test2)
 confusionMatrix(prediction, test$Revenue, positive = "TRUE")
 ```
 
+Conclusion:   
+- The online shopper data has a few variables that correlated of one another.    
+- The two model above (the model with PCA and not) has almost similar in accuracy (with PCA 0.87, without PCA 0.88)   
+- The time consuming while using PCA is 1608.41 sec elapsed and without PCA is 1936.95. Then we can save 328.54 seconds or +-/ 5 minutes of time when using PCA.   
+ 
+
+>Now, how if we have larger numeric predictor and stronger correlation?
+
+# Applying PCA in Breast Cancer Dataset
+
+In this section, we will use breast cancer dataset. Let us say, we want to predict a patient is diagnosed with malignant or benign cancer. The predictor variables are computed from a digitized image of a fine needle aspirate (FNA) of a breast mass. They describe characteristics of the cell nuclei present in the image. The data itself can be downloaded from [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+%28Diagnostic%29)
+
+Here, we will create two models, the first is the model that the predictors is using PCA, and the second is the model without PCA in the preprocessing data.
+
+```{r}
+cancer <- read_csv("data_input/breast-cancer-wisconsin-data/data.csv")
+```
+
+Now, let us take a look at our data.
+
+```{r}
+glimpse(cancer)
+```
+
+The dataset has 569 observations and 33 variables (32 predictors, 1 response variable). While, the variable description is explained below:
+
+- `ID` = ID number   
+- `diagnosis` = (M = malignant, B = benign)   
+
+Ten real-valued features are computed for each cell nucleus:
+
+- radius (mean of distances from center to points on the perimeter)   
+- texture (standard deviation of gray-scale values)   
+- perimeter   
+- area   
+- smoothness (local variation in radius lengths)   
+- compactness (perimeter^2 / area - 1.0)   
+- concavity (severity of concave portions of the contour)   
+- concave points (number of concave portions of the contour)   
+- symmetry   
+- fractal dimension ("coastline approximation" - 1)   
+
+The mean, standard error and "worst" or largest (mean of the three largest values) of these features were computed for each image, resulting in 30 features. For instance, field 3 is Mean Radius, field 13 is Radius SE, field 23 is Worst Radius.
+
+
+From the daya, it seems like variable id and X33 did not help to predict the diagnosis of cancer patient. Let us remove it from the data.
+
+```{r}
+cancer <- cancer %>% 
+  select(-c(X33, id))
+```
+
+```{r}
+colSums(is.na(cancer))
+```
+
+```{r}
+ggcorr(cancer, label = T, hjust = 1, label_size = 2, layout.exp = 6)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(100)
+idx <- initial_split(cancer, prop = 0.8,strata = "diagnosis")
+cancer_train <- training(idx)
+cancer_test <- testing(idx)
+```
+
+### The Breast Cancer Prediction without PCA
+
+```{r}
+rec_cancer_pca <- recipe(diagnosis~., cancer_train) %>% 
+  step_naomit(all_predictors()) %>% 
+  step_nzv(all_predictors()) %>% 
+  step_center(all_numeric()) %>% 
+  step_scale(all_numeric()) %>% 
+  step_pca(all_numeric(), threshold = 0.9) %>% 
+  prep()
+```
+
+```{r}
+cancer_train_pca <- juice(rec_cancer_pca)
+cancer_test_pca <- bake(rec_cancer_pca, cancer_test)
+```
+
+After applying PCA in breast cancer dataset, here are the numer of variable that we will be using.
+```{r}
+head(cancer_train_pca)
+```
+
+From the table above, we use 7 PCs instead of 30 predictor variables
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(100)
+tic()
+ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+model_cancer_pca <- train(diagnosis ~ ., data = cancer_train_pca, method = "rf", trControl = ctrl)
+```
+
+
+```{r eval = F}
+toc()
+```
+
+<center>
+
+![](assets/cancer+pca.PNG)
+
+</center>
+
+```{r}
+pred_cancer_pca <- predict(model_cancer_pca, cancer_test_pca)
+```
+
+```{r}
+confusionMatrix(pred_cancer_pca, cancer_test_pca$diagnosis, positive = "M")
+```
+
+
+### The Breast Cancer Prediction without PCA
+```{r}
+rec_cancer <- recipe(diagnosis~., cancer_train) %>% 
+  step_naomit(all_predictors()) %>% 
+  step_nzv(all_predictors()) %>% 
+  step_center(all_numeric()) %>% 
+  step_scale(all_numeric()) %>% 
+  prep()
+```
+
+```{r}
+cancer_train <- juice(rec_cancer)
+cancer_test <- bake(rec_cancer, cancer_test)
+```
+
+```{r}
+tic()
+set.seed(100)
+ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+model_cancer <- train(diagnosis ~ ., data = cancer_train, method = "rf", trControl = ctrl)
+```
+```{r eval = F}
+toc()
+```
+
+<center>
+
+![](assets/cancer+tnp+pca.PNG)
+
+</center>
+
+```{r}
+pred_cancer <- predict(model_cancer, cancer_test)
+```
+
+```{r}
+confusionMatrix(pred_cancer, cancer_test$diagnosis, positive = "M")
+```
+
+#### Conclusion:   
+- The breast cancer dataset has many variables that correlated of one another.    
+- The two model above (the model with PCA and not) has almost similar in accuracy (with PCA 0.96, without PCA 0.95)   
+- The time consuming while using PCA is 4.88 sec elapsed and without PCA is 11.21. Then we can save 6.33 seconds or while using PCA the computation is more than 2x faster than the model without PCA.
+
+#### Reference:   
+1. http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.74.8032&rep=rep1&type=pdf   
+2. https://iopscience.iop.org/article/10.1088/1742-6596/978/1/012058/pdf   
+3. https://towardsdatascience.com/dimensionality-reduction-does-pca-really-improve-classification-outcome-6e9ba21f0a32
