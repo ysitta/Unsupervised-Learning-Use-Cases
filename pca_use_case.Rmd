@@ -46,8 +46,9 @@ Then, when you should using PCA instead of other method?[^1]
 
 - When you want to reduce the dimension/variable, but you dont care what variables that is completely remove   
 - When you want to ensure your variables are not correlate of one another   
-- When you are comfortable enough to make your predictor variables less interpretable   
+- When you are comfortable enough to make your predictor variables less interpretable 
 
+In this article, we want to apply Principal Component Analysis on two dataset, Online Shopper Intension and Breast Cancer dataset. The aim of this article is to compare how powerful PCA when applied in the data that has less correlate of one another and the dataset that has higher correlation of each variables. Now, let us start with the Online shopper intention dataset first.
 
 # Applying PCA on Online Shopper Intention Dataset
 
@@ -59,14 +60,19 @@ We will create two models here, the first is the model that the predictors is us
 
 Load the library needed.
 ```{r}
+# data wrangling
 library(tidyverse)
-library(FactoMineR)
+library(GGally)
+
+# data preprocessing
+library(recipes)
+
+# modelling
 library(rsample)
 library(caret)
-library(tidymodels)
-library(recipes)
+
+# measure time consumption
 library(tictoc)
-library(GGally)
 ```
 
 Load the shopper intention dataset to our environment.
@@ -117,7 +123,7 @@ ggcorr(select_if(shopper_intention, is.numeric),
        layout.exp = 3)
 ```
 
-It looks like our variables has correlation of one another. Now, let us do the cross validation to split the data into train and test.
+It looks like we have several variables that has correlation of one another, but the correlation is not quite high. Now, let us do the cross validation to split the data into train and test.
 
 Cross Validation
 
@@ -452,7 +458,7 @@ Result:
 
 ## Conclusion
 
-Principal Component Analysis (PCA) is very useful to speed up the computation by reducing the dimensionality of the data. Even, when you have high dimensionality with high correlated variable of one another, the PCA can improve the accuracy of classification model. Unfortunately, while using PCA, you make your machine learning model less interpretable. 
+Principal Component Analysis (PCA) is very useful to speed up the computation by reducing the dimensionality of the data. Plus, when you have high dimensionality with high correlated variable of one another, the PCA can improve the accuracy of classification model. Unfortunately, while using PCA, you make your machine learning model less interpretable. Also,  PCA will only be applied in your dataset when your dataset contains more than one numerical variable that you want to reduce its dimension.
 
 ### Reference:   
 [^1]: https://towardsdatascience.com/dimensionality-reduction-does-pca-really-improve-classification-outcome-6e9ba21f0a32
