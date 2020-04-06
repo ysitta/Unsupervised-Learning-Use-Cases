@@ -42,7 +42,7 @@ Feature extraction is a technique that you create **new** variable based on your
 
 The Principal Component Analysis (PCA) is a statistical method to reduce the dimension of the data by extracting the variables and leave the variables that has least information about something that we predicted $\hat{y}$.
 
-Then, when you should using PCA instead of other method?   
+Then, when you should using PCA instead of other method?[^1]   
 
 - When you want to reduce the dimension/variable, but you dont care what variables that is completely remove   
 - When you want to ensure your variables are not correlate of one another   
@@ -121,21 +121,22 @@ It looks like our variables has correlation of one another. Now, let us do the c
 
 Cross Validation
 
+Let us split the data into 80% to be our training dataset and 20% to be our testing dataset.
 ```{r}
 RNGkind(sample.kind = "Rounding")
 set.seed(417)
 splitted <- initial_split(data = shopper_intention, prop = 0.8, strata = "Revenue")
 ```
 
-Now, let us check the proortion of our response variable, that is `Revenue`.
+Now, let us check the proportion of our target variable in the train dataset, that is `Revenue`.
 
 ```{r}
-prop.table(table(shopper_intention$Revenue))
+prop.table(table(training(splitted)$Revenue))
 ```
 
-Based on the proportion of our response variable, we know that the data is imbalance, hence we will balancing the data in its preprocessing.
+Based on the proportion of our target variable, only 15.4% of our visitor in the website purchase any goods, hence it resulting revenue for the shop. Besides, the proportion of our target variable is imbalance
 
-Then, let us check is there any missing value or not on each variable.
+Then, let us check is there any missing value on each variable.
 
 ```{r}
 colSums(is.na(shopper_intention))
@@ -145,7 +146,7 @@ Based on the output above, our data has several missing value (NA), but the numb
 
 ### The Revenue on Online Wesite Prediction with PCA
 
-Here, we do the several preprocessing step, including **PCA** (using 90% variance of the data)
+Here, we do the several preprocessing step using `recipe()` function from [recipe](https://tidymodels.github.io/recipes/) package. We store all of our preprocessing, in `step_*()` function, including **PCA** step. Here, we use 90% of cummulative variance of the data, hence the threshold is set by 0.90.
 
 ```{r}
 rec <- recipe(Revenue~., training(splitted)) %>% 
@@ -163,11 +164,15 @@ train <- juice(rec)
 test <- bake(rec, testing(splitted))
 ```
 
+Now, peek our train dataset after the preprocessing applied.
 ```{r}
 head(train)
 ```
 
-Here we can see that from 11 numerical predictor, we can use just 6 PC/ new variable to be included in our model.
+Here we can see in train dataset above, we have 1 target variable, 6 categorical predictor and 6 new PCs (the result of 90% variance of PCA) that will be train in to our model.
+
+
+In our first model that is using PCA in our preprocessing data, we want to build a random forest model using 5 fold validation and 3 repeats to predict if the visitor of our website will generate the revenue or not. Besides, we use `tic()` and `toc()` function to measure the time elapsed while running the random forest model.
 
 ```{r eval = F}
 RNGkind(sample.kind = "Rounding")
@@ -183,23 +188,31 @@ toc()
 
 </center>
 
+After running the model, the time consumed to build the model is 1608.41 or around 26 minutes.
+
 ```{r echo = F}
 # saveRDS(model, "model_RF.RDS")
 ```
 
-```{r}
+
+```{r echo = F}
 model <- readRDS("model_RF.RDS")
+```
+
+Then, we use the model to predict the test dataset. 
+
+```{r}
 prediction_pca <- predict(model, test)
 ```
 
+Now, lets check the accuracy of the model built on a confusion matrix.
 ```{r}
 confusionMatrix(prediction_pca, test$Revenue, positive = "TRUE")
 ```
 
 ### The Revenue on Online Wesite Prediction without PCA
 
-
-Now, we want to compare the result above with the model without PCA.
+Now, we want to compare the result of model that using PCA in the preprocessing process with the model using the same preprocessing, but without PCA. Here let us make the recipe first.
 
 ```{r}
 rec2 <- recipe(Revenue~., training(splitted)) %>% 
@@ -215,6 +228,12 @@ rec2 <- recipe(Revenue~., training(splitted)) %>%
 train2 <- juice(rec2)
 test2 <- bake(rec2, testing(splitted))
 ```
+
+```{r}
+head(train2)
+```
+
+In this case, we use 16 predictors, means there are no variable that has been removed. Now, apply the sampe random forest algorithm with the exactly same model tuning to compare the time comsume and accuracy of the model.
 
 ```{r eval = F} 
 RNGkind(sample.kind = "Rounding")
@@ -247,7 +266,7 @@ prediction <- predict(model2, test2)
 confusionMatrix(prediction, test$Revenue, positive = "TRUE")
 ```
 
-Conclusion:   
+Result:   
 - The online shopper data has a few variables that correlated of one another.    
 - The two model above (the model with PCA and not) has almost similar in accuracy (with PCA 0.87, without PCA 0.88)   
 - The time consuming while using PCA is 1608.41 sec elapsed and without PCA is 1936.95. Then we can save 328.54 seconds or +-/ 5 minutes of time when using PCA.   
@@ -292,7 +311,7 @@ Ten real-valued features are computed for each cell nucleus:
 The mean, standard error and "worst" or largest (mean of the three largest values) of these features were computed for each image, resulting in 30 features. For instance, field 3 is Mean Radius, field 13 is Radius SE, field 23 is Worst Radius.
 
 
-From the daya, it seems like variable id and X33 did not help to predict the diagnosis of cancer patient. Let us remove it from the data.
+From the data, the `id` and `X33` variable did not help us to predict the diagnosis of cancer patient. Let us remove it from the data.
 
 ```{r}
 cancer <- cancer %>% 
@@ -303,9 +322,12 @@ cancer <- cancer %>%
 colSums(is.na(cancer))
 ```
 
+Now, let us check the correlation of each variable below to make sure the are the variables high correlated of one another rather than the online shopper data. 
 ```{r}
 ggcorr(cancer, label = T, hjust = 1, label_size = 2, layout.exp = 6)
 ```
+
+From the visualization above, the data has higher correlated between each variable than the online shopper data. 
 
 ```{r}
 RNGkind(sample.kind = "Rounding")
@@ -315,7 +337,9 @@ cancer_train <- training(idx)
 cancer_test <- testing(idx)
 ```
 
-### The Breast Cancer Prediction without PCA
+### The Breast Cancer Prediction with PCA 
+
+Using breast cancer dataset, we first want to build a model using PCA in the preprocessing approach. Still, we use the 90% of the variance of the data.
 
 ```{r}
 rec_cancer_pca <- recipe(diagnosis~., cancer_train) %>% 
@@ -332,12 +356,12 @@ cancer_train_pca <- juice(rec_cancer_pca)
 cancer_test_pca <- bake(rec_cancer_pca, cancer_test)
 ```
 
-After applying PCA in breast cancer dataset, here are the numer of variable that we will be using.
+After applying PCA in breast cancer dataset, here are the number of variable that we will be using.
 ```{r}
 head(cancer_train_pca)
 ```
 
-From the table above, we use 7 PCs instead of 30 predictor variables
+From the table above, we use 7 PCs instead of 30 predictor variables. Now lets train the data to the model.
 
 ```{r}
 RNGkind(sample.kind = "Rounding")
@@ -346,7 +370,6 @@ tic()
 ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
 model_cancer_pca <- train(diagnosis ~ ., data = cancer_train_pca, method = "rf", trControl = ctrl)
 ```
-
 
 ```{r eval = F}
 toc()
@@ -358,16 +381,24 @@ toc()
 
 </center>
 
+The time consumed when using PCA is 4.88 seconds on training the dataset. Next, we can predict the test dataset from the `model_cancer_pca`.
+
 ```{r}
 pred_cancer_pca <- predict(model_cancer_pca, cancer_test_pca)
 ```
+
+Now, let us check the condusion matrix of our model using confusion matrix.
 
 ```{r}
 confusionMatrix(pred_cancer_pca, cancer_test_pca$diagnosis, positive = "M")
 ```
 
+The accuracy of the model for the test data while using PCA is 0.96. Then, we will build a model that's not using PCA to be compared with.
 
 ### The Breast Cancer Prediction without PCA
+
+In this part, we want to classify the breast cancer patient diagnosis without PCA in the preprocessing step. Let us create a recipe for it.
+
 ```{r}
 rec_cancer <- recipe(diagnosis~., cancer_train) %>% 
   step_naomit(all_predictors()) %>% 
@@ -382,6 +413,7 @@ cancer_train <- juice(rec_cancer)
 cancer_test <- bake(rec_cancer, cancer_test)
 ```
 
+Here, we want to create a model using the same algorithm and specification to be compared with the previous model. 
 ```{r}
 tic()
 set.seed(100)
@@ -398,20 +430,32 @@ toc()
 
 </center>
 
+The time consuming without PCA in processing data is 11.21 seconds, means it is almost 3x faster than the model that is using PCA in the preprocessing data. 
+
 ```{r}
 pred_cancer <- predict(model_cancer, cancer_test)
 ```
+
+How about the accuracy of the model? is the accuracy greater while we do not use PCA? Now let us check it using confusion matrix below
 
 ```{r}
 confusionMatrix(pred_cancer, cancer_test$diagnosis, positive = "M")
 ```
 
-#### Conclusion:   
+Turns out, based on the confusion matrix above, the accuracy is lesser (0.95) than using PCA (0.96). Hence, the PCA really works well on the data that has high dimensional data and high correlated of variables[^2].  
+
+Result:   
+
 - The breast cancer dataset has many variables that correlated of one another.    
 - The two model above (the model with PCA and not) has almost similar in accuracy (with PCA 0.96, without PCA 0.95)   
 - The time consuming while using PCA is 4.88 sec elapsed and without PCA is 11.21. Then we can save 6.33 seconds or while using PCA the computation is more than 2x faster than the model without PCA.
 
-#### Reference:   
-1. http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.74.8032&rep=rep1&type=pdf   
-2. https://iopscience.iop.org/article/10.1088/1742-6596/978/1/012058/pdf   
-3. https://towardsdatascience.com/dimensionality-reduction-does-pca-really-improve-classification-outcome-6e9ba21f0a32
+## Conclusion
+
+Principal Component Analysis (PCA) is very useful to speed up the computation by reducing the dimensionality of the data. Even, when you have high dimensionality with high correlated variable of one another, the PCA can improve the accuracy of classification model. Unfortunately, while using PCA, you make your machine learning model less interpretable. 
+
+### Reference:   
+[^1]: https://towardsdatascience.com/dimensionality-reduction-does-pca-really-improve-classification-outcome-6e9ba21f0a32
+[^2]: [The Effect of Principal Component Analysis on Machine
+Learning Accuracy with High Dimensional Spectral
+Data](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.74.8032&rep=rep1&type=pdf)   
