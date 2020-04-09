@@ -174,3 +174,115 @@ paysim %>%
 2. [Why Tourists Choose Airbnb: A Motivation-Based Segmentation Study](https://www.researchgate.net/publication/316533754_Why_Tourists_Choose_Airbnb_A_Motivation-Based_Segmentation_Study)
 3. [Clustering the weapon in PUBG game ](https://algorit.ma/blog/data-science-analysis-pubg/?utm_source=Instagram&utm_medium=Social&utm_campaign=Blog)
 4. [A Taxi Driving Fraud Detection System](https://ieeexplore.ieee.org/abstract/document/6137222?utm_source=datafloq&utm_medium=ref&utm_campaign=datafloq)
+
+
+
+1. RFM Analysis lalu diterapkan kmeans untuk melihat ciri2 customer
+2. Customer segmentation
+3. https://towardsdatascience.com/k-means-clustering-algorithm-applications-evaluation-methods-and-drawbacks-aa03e644b48a
+4. The type of data best suited for K-Means clustering would be numerical data with a relatively lower number of dimensions.
+5. Kalau datanya high dimensional, pakai PCA dulu baru K-Means, ini perlu ditekankan juga
+
+
+## Mall Customer Segmentation
+
+The data is downloaded from [kaggle](https://www.kaggle.com/vjchoudhary7/customer-segmentation-tutorial-in-python)
+
+```{r}
+mall <- read.csv("data_input/Mall_Customers.csv")
+```
+
+```{r}
+glimpse(mall)
+```
+
+- `CustomerID` = Unique ID assigned to the customer
+- `Gender` = Gender of the customer
+- `Age` = Age of the customer
+- `Annual Income` = (k$) Annual Income of the customer
+- `Spending Score` = (1-100) Score assigned by the mall based on customer behavior and spending nature
+
+```{r}
+mall_2 <- mall %>% 
+  select(-CustomerID) %>% 
+  select_if(is.numeric) %>% 
+  scale()
+```
+
+
+```{r}
+wss(mall_2)
+mall_km <- kmeans(mall_2, centers = 4)
+```
+
+```{r}
+mall$cluster <- mall_km$cluster
+mall %>% 
+  select(-c(CustomerID, Gender)) %>% 
+  group_by(cluster) %>% 
+  summarise_all("mean")
+```
+
+Kesimpulan:
+Cluster 1 : Annual income tinggi, spending score rendah 
+Cluster 2 : Annual income sedang, spending score tinggi -> millenial
+Cluster 3 : Annual indome sedang spending score sedang
+Cluster 4 : Annual income rendah, spending score rendah
+
+```{r}
+fviz_cluster(mall_km, mall_2) +
+  theme_minimal()
+```
+
+## PAYSIM
+
+```{r}
+ins <- read.csv("ins_subset.csv")
+ins_scale <- ins %>% 
+  select_if(is.numeric) %>% 
+  scale()
+```
+
+
+```{r}
+ins_pca <- PCA(ins_scale, graph = F)
+```
+
+```{r}
+ins_pca$eig
+```
+
+```{r}
+hasil_pca <- ins_pca$ind$coord
+```
+
+
+```{r}
+wss(hasil_pca)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(100)
+ins_sub_km <- kmeans(ins_scale, centers = 6)
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+ins$cluster <- ins_sub_km$cluster
+```
+
+```{r}
+table(ins$cluster, ins$fraud_reported)
+```
+
+
+```{r}
+fviz_cluster(ins_sub_km, ins_scale)
+```
+
