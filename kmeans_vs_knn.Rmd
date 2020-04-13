@@ -1,0 +1,186 @@
+---
+title: "K-Means vs KNN"
+author: "Sitta"
+date: "`r format(Sys.Date(), '%B %e, %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    theme: united
+    highlight: espresso
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+This article focus on the difference between kmeans and knn algorithms. To differ the two algorithms, let us root the two algorithm based on its target variable availability. The K-Means algoritm is an algorithm for the unsupervised learning. Besides, the KNN is algorithm for the supervised learning. But wait, is it the only differences between the two?
+
+Now, let us start from the K-Means on unsupervised learning first.
+
+# Unsupervised Learning
+
+Imagine you have a dataset and have no variable that you will predict. In case you have a datasets with no target variable, the learning of a machine has to be unsupervised. Hence the learning will be done based on several measure of similarity or distance between each observation in the dataset. The most commonly used technique in supervised learning is clustering.
+
+<center>
+
+![Source: [Research Gate](https://www.researchgate.net/figure/Supervised-learning-and-unsupervised-learning-Supervised-learning-uses-annotation_fig1_329533120)](assets/Supervised vs Unsup.png){ width=80% }
+
+
+</center>
+
+# Clustering Analysis
+
+[Cluster analysis](https://en.wikipedia.org/wiki/Cluster_analysis) or clustering is the task of grouping a set of objects in such a way that objects in the same group (called a cluster) are more similar (in some sense) to each other than to those in other groups (clusters). In this article, we will discuss about one of the common clustering algorithms, that is kmeans.
+
+# Kmeans Clustering Analysis
+
+K-means is a centroid-based clustering algorithm that follows a simple procedure of classifying a given dataset into a pre-determined number of clusters, denoted as “k”. We will discuss about one use case that can be done using kmeans algorithm.
+
+```{r}
+library(factoextra)
+library(tidyverse)
+```
+
+## Mall Customer Segmentation
+
+The data is downloaded from [kaggle](https://www.kaggle.com/vjchoudhary7/customer-segmentation-tutorial-in-python)
+
+```{r}
+mall <- read.csv("data_input/Mall_Customers.csv")
+```
+
+```{r}
+glimpse(mall)
+```
+
+- `CustomerID` = Unique ID assigned to the customer
+- `Gender` = Gender of the customer
+- `Age` = Age of the customer
+- `Annual Income` = (k$) Annual Income of the customer
+- `Spending Score` = (1-100) Score assigned by the mall based on customer behavior and spending nature
+
+```{r}
+mall_2 <- mall %>% 
+  select(-c(1:3)) %>% 
+  scale()
+```
+
+```{r}
+wss <- function(data, maxCluster = 9) {
+    # Initialize within sum of squares
+    SSw <- (nrow(data) - 1) * sum(apply(data, 2, var))
+    SSw <- vector()
+    for (i in 2:maxCluster) {
+        SSw[i] <- sum(kmeans(data, centers = i)$withinss)
+    }
+    plot(1:maxCluster, SSw, type = "o", xlab = "Number of Clusters", ylab = "Within groups sum of squares", pch=19)
+}
+```
+
+```{r}
+wss(mall_2)
+```
+
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(100)
+mall_km <- kmeans(mall_2, centers = 5)
+```
+
+```{r}
+mall$cluster <- mall_km$cluster
+mall %>% 
+  select(-c(1:3)) %>% 
+  group_by(cluster) %>% 
+  summarise_all("mean")
+```
+
+Result:    
+- `Cluster 1` : Low annual income, low spending (pennywise)    
+- `Cluster 2` : Low annual income, high spending (spendthrift)    
+- `Cluster 3` : Medium annual income, medium spending (general spender)    
+- `Cluster 4` : High annual income, low spending (miser)    
+- `Cluster 5` : High annual income, high spending (wealthy/target market)    
+   
+
+```{r}
+fviz_cluster(mall_km, mall_2) +
+  theme_minimal()
+```
+
+
+```{r}
+mall_3 <- mall %>% 
+  select(3,5) %>% 
+  scale()
+```
+
+```{r}
+wss(mall_3)
+```
+
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(100)
+mall_age_km <- kmeans(mall_3, centers = 4)
+```
+
+```{r}
+mall$cluster <- mall_km$cluster
+mall %>% 
+  select(3,5,6) %>% 
+  group_by(cluster) %>% 
+  summarise_all("median")
+```
+
+```{r}
+fviz_cluster(mall_age_km, mall_3) +
+  theme_minimal()
+```
+
+Result:    
+- `Cluster 1` : Priority Customer    
+- `Cluster 2` : Targetted Customer (Young Age)    
+- `Cluster 3` : Targetted Customer (Old Age)    
+- `Cluster 4` : General Customer    
+
+Then, is KNN algorithm is same with the Kmeans algorithm ?
+
+# Supervised Learning
+
+## K-Nearest Neighbors
+
+The K-Nearest Neighbors (KNN) algorithm is an supervised algorithm that can solve both classification and regression problems. Then, how does KNN works? Like its name, the KNN is looking for the similar characteristics based on its nearest neighbors for each data points. 
+
+### K-Nearest Neighbors Use Case
+
+```{r}
+
+```
+
+
+
+### Conclusion
+
+<center>
+
+![Source: [Quora](https://www.quora.com/How-is-the-k-nearest-neighbor-algorithm-different-from-k-means-clustering)](assets/kmeans vs knn.png)
+
+</center>
+
+
+
+Update:
+- link https://rpubs.com/ysittaa/kmeans_knn
+- kmeans pakai data mall customer
+- kemarin belum update banyak karena mentoring DCD dan persiapan bikin add-in material prelearning
+
+To do:
+- Use case KNN, dan narasinya
