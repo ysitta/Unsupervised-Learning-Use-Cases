@@ -1,5 +1,5 @@
 ---
-title: "Dimensionality Reduction using Principal Component Analysis"
+title: "Time Efficiency and Accuracy Improvement using PCA"
 author: "Yaumil Sitta"
 date: "`r format(Sys.Date(), '%B %e, %Y')`"
 output: 
@@ -152,17 +152,17 @@ Based on the output above, our data has several missing value (NA), but the numb
 
 ### The Revenue on Online Wesite Prediction with PCA
 
-Here, we do the several preprocessing step using `recipe()` function from [recipe](https://tidymodels.github.io/recipes/) package. We store all of our preprocessing, in `step_*()` function, including **PCA** step. Here, we use 90% of cummulative variance of the data, hence the threshold is set by 0.90.
+Here, we do the several preprocessing step using `recipe()` function from [recipe](https://tidymodels.github.io/recipes/) package. We store all of our preprocessing, in `step_*()` function, including **PCA** step. Here, the syntax of PCA is `step_pca(all_numeric(), threshold = 0.90)` we use the numeric variable only, and take the 90% of cummulative variance of the data, hence the threshold is set by 0.90.
 
 ```{r}
 rec <- recipe(Revenue~., training(splitted)) %>% 
-  step_naomit(all_predictors()) %>% 
-  step_nzv(all_predictors()) %>% 
-  step_upsample(Revenue, ratio = 1, seed = 100) %>% 
-  step_center(all_numeric()) %>%
-  step_scale(all_numeric()) %>%
-  step_pca(all_numeric(), threshold = 0.90) %>%
-  prep()
+  step_naomit(all_predictors()) %>% # remove the observation that has NA (missing value)
+  step_nzv(all_predictors()) %>% # remove the near zero variance variable
+  step_upsample(Revenue, ratio = 1, seed = 100) %>% # balancing the target variable proportion
+  step_center(all_numeric()) %>% # make all the predictor has 0 mean
+  step_scale(all_numeric()) %>% # make the predictor has 1 sd
+  step_pca(all_numeric(), threshold = 0.90) %>% # do the pca by using 90% variance of the data
+  prep() # prepare the recipe
 ```
 
 ```{r}
@@ -350,11 +350,11 @@ Using breast cancer dataset, we first want to build a model using PCA in the pre
 ```{r}
 rec_cancer_pca <- recipe(diagnosis~., cancer_train) %>% 
   step_naomit(all_predictors()) %>% 
-  step_nzv(all_predictors()) %>% 
-  step_center(all_numeric()) %>% 
-  step_scale(all_numeric()) %>% 
-  step_pca(all_numeric(), threshold = 0.9) %>% 
-  prep()
+  step_nzv(all_predictors()) %>%  
+  step_center(all_numeric()) %>%  
+  step_scale(all_numeric()) %>%  
+  step_pca(all_numeric(), threshold = 0.9) %>%  
+  prep() 
 ```
 
 ```{r}
@@ -461,7 +461,9 @@ Result:
 Principal Component Analysis (PCA) is very useful to speed up the computation by reducing the dimensionality of the data. Plus, when you have high dimensionality with high correlated variable of one another, the PCA can improve the accuracy of classification model. Unfortunately, while using PCA, you make your machine learning model less interpretable. Also,  PCA will only be applied in your dataset when your dataset contains more than one numerical variable that you want to reduce its dimension.
 
 ### Reference:   
-[^1]: https://towardsdatascience.com/dimensionality-reduction-does-pca-really-improve-classification-outcome-6e9ba21f0a32
+[^1]: [Does PCA really improve Classification Outcome](https://towardsdatascience.com/dimensionality-reduction-does-pca-really-improve-classification-outcome-6e9ba21f0a32)
 [^2]: [The Effect of Principal Component Analysis on Machine
 Learning Accuracy with High Dimensional Spectral
 Data](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.74.8032&rep=rep1&type=pdf)   
+
+kapan pake knn kapan pake cluster
